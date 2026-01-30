@@ -44,55 +44,95 @@
     </div>
 
     <script>
-        // --- KONFIGURASI FIREBASE (GANTI DENGAN MILIKMU) ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyDR0dZWEWV4UlGtkyuHRbObARfJzCtrNfg",
-            authDomain: "absen-kelas1.firebaseapp.com",
-            databaseURL: "https://absen-kelas1-default-rtdb.asia-southeast1.firebasedatabase.app/",
-            projectId: "absen-kelas1",
-            storageBucket: "absen-kelas1.firebasestorage.app",
-            messagingSenderId: "44431390321",
-            appId: "1:44431390321:web:4657243af4a5bfb953cdd0"
-        };
+    // --- KONFIGURASI FIREBASE ---
+    const firebaseConfig = {
+        apiKey: "AIzaSy...",
+        authDomain: "proyek-anda.firebaseapp.com",
+        databaseURL: "https://proyek-anda-default-rtdb.firebaseio.com",
+        projectId: "proyek-anda",
+        storageBucket: "proyek-anda.appspot.com",
+        messagingSenderId: "12345678",
+        appId: "1:12345:web:abcde"
+    };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const tglHariIni = new Date().toISOString().split('T')[0];
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const tglHariIni = new Date().toISOString().split('T')[0];
 
-        // Cek apakah sudah absen hari ini
-        window.onload = () => {
-            if (localStorage.getItem('absen_' + tglHariIni)) {
-                tampilkanSudahAbsen();
-            }
-        };
+    // --- PENGATURAN LOKASI SEKOLAH ---
+    // Cara ambil koordinat: Buka Google Maps, klik kanan di lokasi sekolah, salin angkanya.
+    const LAT_SEKOLAH = -6.175392; // Contoh: Latitude Monas
+    const LON_SEKOLAH = 106.827153; // Contoh: Longitude Monas
+    const JARAK_MAKSIMAL = 50; // Jarak maksimal dalam meter (misal 50 meter)
 
-        function tampilkanSudahAbsen() {
-            document.getElementById('formSection').classList.add('hidden');
-            document.getElementById('alreadyDone').classList.remove('hidden');
+    window.onload = () => {
+        if (localStorage.getItem('absen_' + tglHariIni)) {
+            tampilkanSudahAbsen();
+        }
+    };
+
+    function tampilkanSudahAbsen() {
+        document.getElementById('formSection').classList.add('hidden');
+        document.getElementById('alreadyDone').classList.remove('hidden');
+    }
+
+    // Fungsi Hitung Jarak (Haversine Formula)
+    function hitungJarak(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Radius bumi dalam meter
+        const phi1 = lat1 * Math.PI/180;
+        const phi2 = lat2 * Math.PI/180;
+        const deltaPhi = (lat2-lat1) * Math.PI/180;
+        const deltaLambda = (lon2-lon1) * Math.PI/180;
+
+        const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
+                  Math.cos(phi1) * Math.cos(phi2) *
+                  Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // Hasil dalam meter
+    }
+
+    function kirimAbsen() {
+        const nama = document.getElementById('namaSiswa').value;
+        if (nama.trim().length < 3) return Swal.fire('Oops!', 'Masukkan nama lengkap!', 'warning');
+
+        // Cek Geolokasi
+        if (!navigator.geolocation) {
+            return Swal.fire('Error', 'Browser kamu tidak mendukung cek lokasi', 'error');
         }
 
-        function kirimAbsen() {
-            const nama = document.getElementById('namaSiswa').value;
+        Swal.fire({
+            title: 'Mengecek Lokasi...',
+            text: 'Harap tunggu sebentar',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading() }
+        });
+
+        navigator.geolocation.getCurrentPosition((position) => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
             
-            if (nama.trim().length < 3) {
-                return Swal.fire('Oops!', 'Masukkan nama lengkap minimal 3 karakter', 'warning');
-            }
+            const jarak = hitungJarak(userLat, userLon, LAT_SEKOLAH, LON_SEKOLAH);
 
-            // Simpan ke Firebase
-            db.ref('rekap_absen/' + tglHariIni).push({
-                nama: nama,
-                waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                // Kunci di perangkat ini
-                localStorage.setItem('absen_' + tglHariIni, true);
-                Swal.fire('Sukses!', 'Kehadiranmu sudah dicatat', 'success').then(() => {
-                    tampilkanSudahAbsen();
+            if (jarak > JARAK_MAKSIMAL) {
+                Swal.fire('Gagal!', `Kamu terlalu jauh dari sekolah (${Math.round(jarak)}m). Silakan absen di dalam kelas!`, 'error');
+            } else {
+                // Lanjutkan simpan ke Firebase
+                db.ref('rekap_absen/' + tglHariIni).push({
+                    nama: nama,
+                    waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                    jarak: Math.round(jarak) + " meter" // Catat jaraknya juga buat bukti
+                }).then(() => {
+                    localStorage.setItem('absen_' + tglHariIni, true);
+                    Swal.fire('Berhasil!', 'Kehadiran dicatat. Kamu berada di lokasi sekolah.', 'success').then(() => {
+                        tampilkanSudahAbsen();
+                    });
                 });
-            }).catch((error) => {
-                Swal.fire('Gagal!', 'Terjadi kesalahan sistem', 'error');
-            });
-        }
-    </script>
+            }
+        }, (err) => {
+            Swal.fire('Akses Ditolak', 'Kamu harus mengizinkan akses lokasi untuk absen!', 'error');
+        }, { enableHighAccuracy: true });
+    }
+</script>
 </body>
 </html>
