@@ -66,15 +66,38 @@
     const JARAK_MAKSIMAL = 50; // Jarak maksimal dalam meter (misal 50 meter)
 
     window.onload = () => {
-        if (localStorage.getItem('absen_' + tglHariIni)) {
-            tampilkanSudahAbsen();
-        }
-    };
+    const tglHariIni = new Date().toLocaleDateString('en-CA'); // Format: YYYY-MM-DD sesuai zona waktu lokal
+    const tglTerakhirAbsen = localStorage.getItem('tanggal_absen_terakhir');
 
-    function tampilkanSudahAbsen() {
-        document.getElementById('formSection').classList.add('hidden');
-        document.getElementById('alreadyDone').classList.remove('hidden');
+    // JIKA tanggal di HP beda dengan tanggal terakhir dia absen, 
+    // MAKA hapus kunci absen supaya bisa isi lagi
+    if (tglTerakhirAbsen !== tglHariIni) {
+        localStorage.removeItem('sudah_absen'); 
     }
+
+    // CEK kembali statusnya
+    if (localStorage.getItem('sudah_absen') === "true") {
+        tampilkanSudahAbsen();
+    }
+};
+
+function kirimAbsen() {
+    // ... kode ambil nama dan cek GPS ...
+    
+    // Simpan ke Firebase (seperti kode sebelumnya)
+    db.ref('rekap_absen/' + tglHariIni).push({
+        nama: nama,
+        waktu: new Date().toLocaleTimeString('id-ID')
+    }).then(() => {
+        // SIMPAN DUA DATA: Status absen dan Tanggalnya
+        localStorage.setItem('sudah_absen', "true");
+        localStorage.setItem('tanggal_absen_terakhir', tglHariIni);
+        
+        Swal.fire('Berhasil!', 'Kehadiran dicatat', 'success').then(() => {
+            tampilkanSudahAbsen();
+        });
+    });
+};
 
     // Fungsi Hitung Jarak (Haversine Formula)
     function hitungJarak(lat1, lon1, lat2, lon2) {
@@ -136,4 +159,5 @@
 </script>
 </body>
 </html>
+
 
