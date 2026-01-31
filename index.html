@@ -61,9 +61,9 @@
 
     // --- PENGATURAN LOKASI SEKOLAH ---
     // Cara ambil koordinat: Buka Google Maps, klik kanan di lokasi sekolah, salin angkanya.
-    const LAT_SEKOLAH = -6.175392; // Contoh: Latitude Monas
-    const LON_SEKOLAH = 106.827153; // Contoh: Longitude Monas
-    const JARAK_MAKSIMAL = 50; // Jarak maksimal dalam meter (misal 50 meter)
+    const LAT_SEKOLAH = -6.8517112; // Contoh: Latitude Monas
+    const LON_SEKOLAH = 107.5506937; // Contoh: Longitude Monas
+    const JARAK_MAKSIMAL = 150; // Jarak maksimal dalam meter (misal 50 meter)
 
     window.onload = () => {
     const tglHariIni = new Date().toLocaleDateString('en-CA'); // Format: YYYY-MM-DD sesuai zona waktu lokal
@@ -98,7 +98,6 @@ function kirimAbsen() {
         });
     });
 };
-
     // Fungsi Hitung Jarak (Haversine Formula)
     function hitungJarak(lat1, lon1, lat2, lon2) {
         const R = 6371e3; // Radius bumi dalam meter
@@ -159,5 +158,3 @@ function kirimAbsen() {
 </script>
 </body>
 </html>
-
-
