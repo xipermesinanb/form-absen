@@ -35,43 +35,6 @@
 
             <div id="alreadyDone" class="hidden text-center py-6">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 text-green-500 rounded-full mb-4">
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Absensi Siswa XI Permesinan B - Scan QR</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-</head>
-<body class="bg-gradient-to-br from-indigo-600 to-purple-700 min-h-screen flex items-center justify-center p-4">
-
-    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
-        <div class="bg-indigo-100 p-8 text-center">
-            <div class="text-6xl mb-2">✍️</div>
-            <h1 class="text-2xl font-bold text-indigo-900">E-Absensi Siswa</h1>
-            <h1 class="text-2xl font-bold text-indigo-900">XI Premesinan B</h1>
-            <p class="text-indigo-600">Silakan konfirmasi kehadiran Anda</p>
-        </div>
-
-        <div class="p-8">
-            <div id="formSection">
-                <div class="mb-6">
-                    <label class="block text-gray-700 font-semibold mb-2 text-sm">Nama Lengkap</label>
-                    <input type="text" id="namaSiswa" 
-                        class="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-indigo-500 focus:outline-none transition-all" 
-                        placeholder="Ketik nama sesuai absen...">
-                </div>
-                <button onclick="kirimAbsen()" 
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transform active:scale-95 transition-all">
-                    HADIR SEKARANG
-                </button>
-            </div>
-
-            <div id="alreadyDone" class="hidden text-center py-6">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 text-green-500 rounded-full mb-4">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 </div>
                 <h2 class="text-xl font-bold text-gray-800">Absen Berhasil!</h2>
@@ -81,36 +44,55 @@
     </div>
 
     <script>
- // --- KONFIGURASI FIREBASE ---
+    // --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
-        apiKey: "AIzaSyDR0dZWEWV4UlGtkyuHRbObARfJzCtrNfg",
-            authDomain: "absen-kelas1.firebaseapp.com",
-            databaseURL: "https://absen-kelas1-default-rtdb.asia-southeast1.firebasedatabase.app/",
-            projectId: "absen-kelas1",
-            storageBucket: "absen-kelas1.firebasestorage.app",
-            messagingSenderId: "44431390321",
-            appId: "1:44431390321:web:4657243af4a5bfb953cdd0"
+    apiKey: "AIzaSyDR0dZWEWV4UlGtkyuHRbObARfJzCtrNfg",
+    authDomain: "absen-kelas1.firebaseapp.com",
+    databaseURL: "https://absen-kelas1-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "absen-kelas1",
+    storageBucket: "absen-kelas1.firebasestorage.app",
+    messagingSenderId: "44431390321",
+    appId: "1:44431390321:web:4657243af4a5bfb953cdd0"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Gunakan format tanggal yang konsisten (YYYY-MM-DD)
-const tglHariIni = new Date().toLocaleDateString('en-CA'); 
-
 const LAT_SEKOLAH = -6.8517112; 
 const LON_SEKOLAH = 107.5506937; 
 const JARAK_MAKSIMAL = 150; 
 
+/**
+ * Fungsi untuk mendapatkan 'ID Siklus' (Reset jam 6 pagi)
+ * Jika sekarang jam 05:00 tanggal 10, maka dianggap masih siklus tanggal 09.
+ * Jika sekarang jam 07:00 tanggal 10, maka dianggap siklus tanggal 10.
+ */
+function getSiklusHari() {
+    const sekarang = new Date();
+    const jam = sekarang.getHours();
+    
+    let tanggalSiklus = new Date(sekarang);
+    if (jam < 6) {
+        // Jika belum jam 6 pagi, mundurkan 1 hari (masih dianggap hari kemarin)
+        tanggalSiklus.setDate(sekarang.getDate() - 1);
+    }
+    
+    // Kembalikan format YYYY-MM-DD
+    return tanggalSiklus.toLocaleDateString('en-CA');
+}
+
+const idSiklusSaatIni = getSiklusHari();
+
 // --- LOGIKA CEK STATUS SAAT BUKA HALAMAN ---
 window.onload = () => {
     const statusAbsen = localStorage.getItem('sudah_absen');
-    const tglTerakhir = localStorage.getItem('tanggal_absen_terakhir');
+    const siklusTerakhir = localStorage.getItem('siklus_absen_terakhir');
 
-    // Jika ganti hari, reset status absen di HP
-    if (tglTerakhir !== tglHariIni) {
+    // Cek apakah siklus di memori HP berbeda dengan siklus saat ini
+    if (siklusTerakhir !== idSiklusSaatIni) {
+        // Reset jika sudah masuk siklus baru (lewat jam 6 pagi)
         localStorage.removeItem('sudah_absen');
-        localStorage.removeItem('tanggal_absen_terakhir');
+        localStorage.removeItem('siklus_absen_terakhir');
     } else if (statusAbsen === "true") {
         tampilkanSudahAbsen();
     }
@@ -159,15 +141,15 @@ function kirimAbsen() {
         if (jarak > JARAK_MAKSIMAL) {
             Swal.fire('Gagal!', `Anda berada di luar area sekolah (${Math.round(jarak)}m).`, 'error');
         } else {
-            // SIMPAN KE FIREBASE
-            db.ref('rekap_absen/' + tglHariIni).push({
+            // SIMPAN KE FIREBASE (Menggunakan ID Siklus agar rapi di database)
+            db.ref('rekap_absen/' + idSiklusSaatIni).push({
                 nama: nama,
-                waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                waktu_asli: new Date().toLocaleString('id-ID'),
                 jarak: Math.round(jarak) + " meter"
             }).then(() => {
-                // KUNCI ABSEN DI LOCALSTORAGE
+                // KUNCI ABSEN DI LOCALSTORAGE DENGAN ID SIKLUS
                 localStorage.setItem('sudah_absen', "true");
-                localStorage.setItem('tanggal_absen_terakhir', tglHariIni);
+                localStorage.setItem('siklus_absen_terakhir', idSiklusSaatIni);
                 
                 Swal.fire('Berhasil!', 'Absensi Anda telah dicatat.', 'success').then(() => {
                     tampilkanSudahAbsen();
